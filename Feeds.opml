@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opml version="2.0">
+  <head>
+    <dateCreated>Sun, 24 Sep 2023 18:36:50 GMT</dateCreated>
+    <docs />
+  </head>
+  <body>
+ 
+    <outline type="rss" title="Edu Mint" xmlUrl="https://www.livemint.com/rss/education" />
+    <outline type="rss" title="Alt News" xmlUrl="https://www.altnews.in/feed" />
+    <outline type="rss" title="Tech FP" xmlUrl="https://www.firstpost.com/rss/tech.xml" />
+    <outline type="rss" title="Tech Mint" xmlUrl="https://www.livemint.com/rss/technology" />
+  </body>
+</opml>
