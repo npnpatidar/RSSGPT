@@ -5,7 +5,7 @@ from collections import defaultdict
 import requests
 import feedparser
 import re
-import reader
+import g4f
 
 # Function to read the last run date from a file
 def read_last_run_date():
@@ -28,6 +28,7 @@ def write_last_run_date(date):
         print("last run date is ", date)
         file.write(date.strftime("%Y-%m-%d %H:%M:%S"))
 
+# Function to simplify a URL
 def simplify_string(s):
     # Remove common web prefixes and suffixes
     s = re.sub(r'^https?://', '', s)  # Remove http:// or https://
@@ -73,13 +74,58 @@ def create_markdown_file(feed_url, entries):
             for entry in date_entries:
                 markdown_file.write(f"## [{entry.title}]({entry.link})\n\n")
                 print("fetching article text for ", entry.title)
-                article_text = reader.fetch_article_text(entry.link)
+                article_text = fetch_article_text(entry.link)
                 print("summarising article text for ", entry.title)
-                generated_summary = reader.summarise(article_text)
+                generated_summary = summarise(article_text)
                 print("writing summary for ", entry.title)
                 markdown_file.write(generated_summary + '\n\n')
 
-               
+
+# function to generate summary
+def summarise(article_text):
+    
+    summary=""
+
+        # Define your conversation with the model
+    conversation = [
+        {"role": "system", "content": "You are a helpful assistant that summarizes articles.Now summarize this article:" + article_text },
+    ]
+
+    # Make a request to GPT-3 for summarization
+    response = g4f.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=conversation,
+        max_tokens=500,  # Adjust the max_tokens to control the length of the summary
+        stream=False,  # Set to False to get a single response
+    )
+
+    # Extract and print the summary from the response
+    for message in response:
+
+        summary += message
+    
+    return summary
+
+
+
+# Function to retrieve full article text from a URL
+def fetch_article_text(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # Customize this part based on the specific structure of the webpage
+        article_text = ''
+        # Example: Extracting text from <p> tags
+        paragraphs = soup.find_all('p')
+        for paragraph in paragraphs:
+            article_text += paragraph.get_text() + '\n'
+        return article_text
+    except Exception as e:
+        print(f"Error fetching content from {url}: {str(e)}")
+        return None
+
+
 
 # Function to parse OPML file and extract feed URLs
 def parse_opml1(opml_content):
@@ -91,7 +137,7 @@ def parse_opml1(opml_content):
             feed_urls.append(outline["xmlUrl"])
     return feed_urls
 
-
+# Function to parse OPML file and extract feed URLs
 def parse_opml(opml_file):
     feeds = []
     with open(opml_file, 'r') as file:
