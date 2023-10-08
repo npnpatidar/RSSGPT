@@ -7,6 +7,7 @@ import feedparser
 import re
 import g4f
 
+
 # Function to read the last run date from a file
 def read_last_run_date():
     last_run_date = None
@@ -151,6 +152,38 @@ def parse_opml(opml_file):
     return feeds
 
 
+def share_folder_contents(folder_path, api_url):
+    try:
+        # Name for the ZIP archive
+        zip_file_name = "folder_contents.zip"
+
+        # Create the ZIP archive
+        with zipfile.ZipFile(zip_file_name, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, folder_path)
+                    zipf.write(file_path, arcname=arcname)
+
+        # Upload the ZIP file to the file-sharing service
+        with open(zip_file_name, "rb") as file:
+            response = requests.post(api_url, files={"file": file})
+
+        # Parse the response JSON to get the sharing link
+        if response.status_code == 200:
+            data = response.json()
+            share_link = data.get("link")
+            if share_link:
+                # Delete the ZIP file after successful upload and sharing
+                os.remove(zip_file_name)
+            return share_link
+        else:
+            return None
+
+    except Exception as e:
+        print("An error occurred:", str(e))
+        return None
+
 
 # Load the OPML file
 opml_file = "Feeds.opml"
@@ -185,3 +218,14 @@ for feed_url in feed_urls:
 write_last_run_date(datetime.now())
 
 print("Markdown files updated successfully.")
+
+
+
+# share folder
+folder_path = "markdown_files"
+api_url = "https://file.io"
+share_link = share_folder_contents(folder_path, api_url)
+if share_link:
+    print("File uploaded and shared:", share_link)
+else:
+    print("Failed to upload and share the file.")
