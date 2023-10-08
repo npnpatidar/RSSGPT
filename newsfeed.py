@@ -6,6 +6,7 @@ import requests
 import feedparser
 import re
 import g4f
+import zipfile
 
 
 # Function to read the last run date from a file
