@@ -107,7 +107,7 @@ def parse_opml(opml_file):
 
 
 # Load the OPML file
-opml_file = "FocusReader.opml"
+opml_file = "Feeds.opml"
 
 # Read the OPML file content
 with open(opml_file, "r", encoding="utf-8") as file:
