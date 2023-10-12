@@ -29,11 +29,12 @@ def write_to_markdown(cursor, feed_title, entry):
 def write_entries_to_markdown(cursor, table_name):
 
   cursor.execute(f'''
-        SELECT *
-        FROM {table_name}
-        WHERE entry_written = 0  -- Select entries with entry_written as false
-        ORDER BY entry_date DESC  -- Sort by entry_date in descending order (latest to oldest)
-    ''')
+    SELECT *
+    FROM {table_name}
+    WHERE entry_written = 0  -- Select entries with entry_written as false
+      AND entry_summary <> "NO SUMMARY"  -- Exclude entries with entry_summary as "NO SUMMARY"
+    ORDER BY entry_date DESC  -- Sort by entry_date in descending order (latest to oldest)
+  ''')
   entries = cursor.fetchall()
 
   if not entries:
@@ -43,6 +44,7 @@ def write_entries_to_markdown(cursor, table_name):
     config = json.load(config_file)
 
   output_directory = config.get("output_directory", "output_directory")
+  is_summary = config.get("is_summary", False)
 
   markdown_filepath = os.path.join(output_directory, f"{table_name}.md")
   file_exists = os.path.isfile(markdown_filepath)
@@ -56,8 +58,11 @@ def write_entries_to_markdown(cursor, table_name):
       # Write the entry to the markdown file
       markdown_file.write(f"# {entry_title}\n")
       markdown_file.write(f"Published Date: {formatted_date}\n")
-      markdown_file.write(f"{entry_summary}\n")
-      markdown_file.write(f"{entry_article_text}\n")
+      if is_summary:
+        markdown_file.write(f"Summary: {entry_summary}\n")
+      else:
+        markdown_file.write(f"Summary: {entry_summary}\n\n")
+  
       markdown_file.write("\n")
       # Add more details as needed
 

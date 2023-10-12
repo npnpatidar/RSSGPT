@@ -2,6 +2,7 @@ import json
 import os
 import sqlite3
 import concurrent.futures
+import g4f
 
 
 
@@ -34,8 +35,8 @@ def main():
 
  
 
-  update_summary_for_all_tables(cursor)
-
+  for _ in range(5):
+    update_summary_for_all_tables(database_name, g4f)
 
   print("summary for new entries updated in the database")
 

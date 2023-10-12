@@ -55,44 +55,42 @@ def parse_opml(opml_file):
 
 
 # Function to summarise article
-def summarise(article_text):
-  max_attempts = 10
-  summary = ""
-  # Define your conversation with the model
-  conversation = [
-      {
-          "role":
-          "system",
-          "content":
-          "You are a helpful assistant that summarizes articles.Now summarize this article:"
-          + article_text
-      },
-  ]
+def summarise(g4f, article_text):
+    max_attempts = 10
+    summary = ""
+    # Define your conversation with the model
+    conversation = [
+        {
+            "role":
+            "system",
+            "content":
+            "You are a helpful assistant that summarizes articles. Now summarize this article:" + article_text
+        },
+    ]
 
-  for _ in range(max_attempts):
-    try:
-      response = g4f.ChatCompletion.create(
-          model="gpt-3.5-turbo",
-          messages=conversation,
-          max_tokens=500,
-          stream=False,
-      )
+    for _ in range(max_attempts):
+        try:
+            response = g4f.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=conversation,
+                max_tokens=500,
+                stream=False,
+            )
 
-      for message in response:
-        summary += message
+            for message in response:
+                summary += message
 
-      # Split the response into words and check if it has more than 5 words
-      words = summary.split()
-      if len(words) > 5:
-        return summary
+            # Split the response into words and check if it has more than 5 words
+            words = summary.split()
+            if len(words) > 5:
+                return summary
 
-    except Exception as e:
-      # Log the error (you can use a logging library for this)
-      print(f"Error while summarizing article: {str(e)}")
+        except Exception as e:
+            # Log the error (you can use a logging library for this)
+            print(f"Error while summarizing article")
 
-  # If after 10 attempts there's no valid response, return an error message or handle as needed
-  return "NO SUMMARY"
-
+    # If after 10 attempts there's no valid response, return an error message or handle as needed
+    return "NO SUMMARY"
 
 # Function to retrieve full article text from a URL
 def fetch_article_text(url):
@@ -125,41 +123,58 @@ def fetch_and_update_article_text(db_file, table_name, entry_id, entry_url):
 
 
 # Function to update summary for all tables
-def update_summary_for_all_tables(cursor):
+def update_summary_for_all_tables(db_file, g4f):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        with sqlite3.connect(db_file) as connection:
+            cursor = connection.cursor()
 
-  # Get a list of all table names in the database
-  cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-  table_names = cursor.fetchall()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            table_names = cursor.fetchall()
 
-  for table_name in table_names:
-    table_name = table_name[0]  # Extract the table name from the result
+            for table_name in table_names:
+                table_name = table_name[0]
 
-    # Select entries with "NO Summary" in each table
-    cursor.execute(f'''
-            SELECT entry_id, entry_url, entry_article_text, entry_title
-            FROM {table_name}
-            WHERE entry_summary = "NO SUMMARY"
-        ''')
+                cursor.execute(f'''
+                    SELECT entry_id, entry_url, entry_article_text, entry_title
+                    FROM {table_name}
+                    WHERE entry_summary = "NO SUMMARY"
+                ''')
 
-    entries_with_no_summary = cursor.fetchall()
+                entries_with_no_summary = cursor.fetchall()
 
-    for entry_id, entry_url, entry_article_text, entry_title in entries_with_no_summary:
-      # Fetch the article text from the article URL (You may need to use a library like requests to fetch the text)
+                for entry_id, entry_url, entry_article_text, entry_title in entries_with_no_summary:
+                    executor.submit(summarize_and_update,g4f, table_name, entry_id, entry_article_text, entry_title)
 
-      print("summarising", entry_title)
-      summary = summarise(
-          entry_article_text)  # Implement fetch_article_text function
 
-      if summary != "NO SUMMARY":
-        cursor.execute(
-            f'''
-                    UPDATE {table_name}
-                    SET entry_summary = ?
-                    WHERE entry_id = ?
+def summarize_and_update(g4f, table_name, entry_id, entry_article_text, entry_title):
+    try:
+        with open('config.json', 'r') as config_file:
+          config = json.load(config_file)
+        database_name = config.get("database_name", "rss_feed.db")
+        
+        # Create a new connection and cursor
+        conn = sqlite3.connect(database_name)
+        cursor = conn.cursor()
+
+        summary = summarise(g4f, entry_article_text)
+
+        if summary != "NO SUMMARY":
+            cursor.execute(
+                f'''
+                UPDATE {table_name}
+                SET entry_summary = ?
+                WHERE entry_id = ?
                 ''', (summary, entry_id))
-        print(f"Updated summary")
-        cursor.connection.commit()
+            conn.commit()  # Commit immediately after updating
+            print(f"Updated summary for {entry_title}")
 
+        # Close the cursor and connection
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"Error updating summary for {entry_title}: {str(e)}")
+    
 
 # Function to update article text for all tables
 def update_article_text_for_all_tables(db_file):
