@@ -28,8 +28,9 @@ def validate_entry(entry):
 
 
 # Function to insert article data
-def insert_article_data(feed_title, entry, cursor):
-
+def insert_article_data(feed_title, entry, pool):
+  connection = pool.get_connection()
+  cursor = connection.cursor()
   if validate_entry(entry):
     table_name = feed_title.replace(' ', '_')
     cursor.execute(
@@ -38,6 +39,9 @@ def insert_article_data(feed_title, entry, cursor):
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (entry.id, entry.title, entry.link, "NO SUMMARY", "",
               entry.published, False))
+    cursor.connection.commit()
+  pool.release_connection(connection)
+
 
 
 # Function to parse OPML file and extract feed URLs
@@ -73,7 +77,7 @@ def summarise(g4f, article_text):
             response = g4f.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=conversation,
-                max_tokens=500,
+                max_tokens=1000,
                 stream=False,
             )
 
@@ -109,53 +113,63 @@ def fetch_article_text(url):
         print(f"Error fetching content from {url}: {str(e)}")
         return None
 
-def fetch_and_update_article_text(db_file, table_name, entry_id, entry_url):
-    article_text = fetch_article_text(entry_url)
-    print("article fetched")
-    if article_text:
-        with sqlite3.connect(db_file) as connection:
-            cursor = connection.cursor()
-            cursor.execute(f'''
-                UPDATE {table_name}
-                SET entry_article_text = ?
-                WHERE entry_id = ?
+def fetch_and_update_article_text(pool, table_name, entry_id, entry_url):
+    # Get a connection from the pool
+    connection = pool.get_connection()
+    cursor = connection.cursor()
+
+    try:
+        # Fetch the article text from the article URL (You may need to use a library like requests to fetch the text)
+        article_text = fetch_article_text(entry_url)
+
+        cursor.execute(
+            f'''
+            UPDATE {table_name}
+            SET entry_article_text = ?
+            WHERE entry_id = ?
             ''', (article_text, entry_id))
+        connection.commit()  # Commit immediately after updating
+
+    except Exception as e:
+        print(f"Error fetching or updating content for entry {entry_id}: {str(e)}")
+
+    finally:
+        # Release the connection back to the pool
+        pool.release_connection(connection)
+
 
 
 # Function to update summary for all tables
-def update_summary_for_all_tables(db_file, g4f):
+def update_summary_for_all_tables(pool, g4f):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        with sqlite3.connect(db_file) as connection:
-            cursor = connection.cursor()
+            # Get a connection from the pool
+        connection = pool.get_connection()
+        cursor = connection.cursor()
 
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            table_names = cursor.fetchall()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        table_names = cursor.fetchall()
 
-            for table_name in table_names:
-                table_name = table_name[0]
+        for table_name in table_names:
+            table_name = table_name[0]
 
-                cursor.execute(f'''
-                    SELECT entry_id, entry_url, entry_article_text, entry_title
-                    FROM {table_name}
-                    WHERE entry_summary = "NO SUMMARY"
-                ''')
+            cursor.execute(f'''
+                SELECT entry_id, entry_url, entry_article_text, entry_title
+                FROM {table_name}
+                WHERE entry_summary = "NO SUMMARY"
+            ''')
 
-                entries_with_no_summary = cursor.fetchall()
+            entries_with_no_summary = cursor.fetchall()
 
-                for entry_id, entry_url, entry_article_text, entry_title in entries_with_no_summary:
-                    executor.submit(summarize_and_update,g4f, table_name, entry_id, entry_article_text, entry_title)
+            for entry_id, entry_url, entry_article_text, entry_title in entries_with_no_summary:
+                executor.submit(summarize_and_update,pool, g4f, table_name, entry_id, entry_article_text, entry_title)
+        pool.release_connection(connection)
 
 
-def summarize_and_update(g4f, table_name, entry_id, entry_article_text, entry_title):
+def summarize_and_update(pool, g4f, table_name, entry_id, entry_article_text, entry_title):
     try:
-        with open('config.json', 'r') as config_file:
-          config = json.load(config_file)
-        database_name = config.get("database_name", "rss_feed.db")
-        
-        # Create a new connection and cursor
-        conn = sqlite3.connect(database_name)
-        cursor = conn.cursor()
-
+        connection = pool.get_connection()
+        cursor = connection.cursor()
+       
         summary = summarise(g4f, entry_article_text)
 
         if summary != "NO SUMMARY":
@@ -165,36 +179,41 @@ def summarize_and_update(g4f, table_name, entry_id, entry_article_text, entry_ti
                 SET entry_summary = ?
                 WHERE entry_id = ?
                 ''', (summary, entry_id))
-            conn.commit()  # Commit immediately after updating
+            connection.commit()  # Commit immediately after updating
             print(f"Updated summary for {entry_title}")
 
         # Close the cursor and connection
-        cursor.close()
-        conn.close()
+        pool.release_connection(connection)
 
     except Exception as e:
         print(f"Error updating summary for {entry_title}: {str(e)}")
+        pool.release_connection(connection)
+    
     
 
 # Function to update article text for all tables
-def update_article_text_for_all_tables(db_file):
+def update_article_text_for_all_tables(pool):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        with sqlite3.connect(db_file) as connection:
-            cursor = connection.cursor()
+        # Get a connection from the pool
+        connection = pool.get_connection()
+        cursor = connection.cursor()
 
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            table_names = cursor.fetchall()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        table_names = cursor.fetchall()
 
-            for table_name in table_names:
-                table_name = table_name[0]
+        for table_name in table_names:
+            table_name = table_name[0]
 
-                cursor.execute(f'''
-                    SELECT entry_id, entry_url
-                    FROM {table_name}
-                    WHERE entry_article_text = ""
-                ''')
+            cursor.execute(f'''
+                SELECT entry_id, entry_url
+                FROM {table_name}
+                WHERE entry_article_text = ""
+            ''')
 
-                entries_with_no_article_text = cursor.fetchall()
+            entries_with_no_article_text = cursor.fetchall()
 
-                for entry_id, entry_url in entries_with_no_article_text:
-                    executor.submit(fetch_and_update_article_text, db_file, table_name, entry_id, entry_url)
+            for entry_id, entry_url in entries_with_no_article_text:
+                executor.submit(fetch_and_update_article_text, pool, table_name, entry_id, entry_url)
+
+        # Release the connection back to the pool
+        pool.release_connection(connection)

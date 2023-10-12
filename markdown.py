@@ -26,8 +26,9 @@ def write_to_markdown(cursor, feed_title, entry):
 
 
 # Function to write entries to markdown
-def write_entries_to_markdown(cursor, table_name):
-
+def write_entries_to_markdown(pool, table_name):
+  connection = pool.get_connection()
+  cursor = connection.cursor()
   cursor.execute(f'''
     SELECT *
     FROM {table_name}
@@ -44,7 +45,7 @@ def write_entries_to_markdown(cursor, table_name):
     config = json.load(config_file)
 
   output_directory = config.get("output_directory", "output_directory")
-  is_summary = config.get("is_summary", False)
+  is_summary = config.get("is_summary", True)
 
   markdown_filepath = os.path.join(output_directory, f"{table_name}.md")
   file_exists = os.path.isfile(markdown_filepath)
@@ -75,15 +76,19 @@ def write_entries_to_markdown(cursor, table_name):
             ''', (entry_id, ))
 
   # Commit changes to the database
-  cursor.connection.commit()
+  connection.commit()
+  pool.release_connection(connection)
 
 
 # Function to write markdown for all tables
-def write_markdown_for_all_tables(cursor):
+def write_markdown_for_all_tables(pool):
+  connection = pool.get_connection()
+  cursor = connection.cursor()
   cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
   table_names = cursor.fetchall()
 
   for table_name in table_names:
     table_name = table_name[0]  # Extract the table name from the result
-    write_entries_to_markdown(cursor, table_name)
+    write_entries_to_markdown(pool, table_name)
   cursor.connection.commit()
+  pool.release_connection(connection)

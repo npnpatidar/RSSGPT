@@ -11,11 +11,14 @@ def initialize_db():
   db_name = config.get("database_name", "default.db")
   conn = sqlite3.connect(db_name)
   cursor = conn.cursor()
-  return conn, cursor
+  conn.close()
+  #return conn, cursor
 
 
 # Function to create a table
-def create_table(feed_title, cursor):
+def create_table(feed_title, pool):
+  connection = pool.get_connection()
+  cursor = connection.cursor()
   with open('config.json', 'r') as config_file:
     config = json.load(config_file)
 
@@ -27,10 +30,13 @@ def create_table(feed_title, cursor):
         CREATE TABLE IF NOT EXISTS {table_name} ({schema_str})
     ''')
   cursor.connection.commit()
+  pool.release_connection(connection)
 
 
 # Function to complete the database
-def complete_database(cursor, feed_file):
+def complete_database(pool, feed_file):
+  connection = pool.get_connection()
+  cursor = connection.cursor()
   with open('config.json', 'r') as config_file:
     config = json.load(config_file)
 
@@ -39,10 +45,10 @@ def complete_database(cursor, feed_file):
     feed_title = feed['title']
     feed_url = feed['url']
 
-    create_table(feed_title, cursor)
+    create_table(feed_title, pool)
     feed_data = fetch_feed_data(feed_url)
 
     for entry in feed_data:
-      insert_article_data(feed_title, entry, cursor)
+      insert_article_data(feed_title, entry, pool)
 
-  cursor.connection.commit()
+  pool.release_connection(connection)
