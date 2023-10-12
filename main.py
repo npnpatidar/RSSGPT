@@ -1,9 +1,8 @@
 import json
 import os
 import sqlite3
-import asyncio
-import nest_asyncio
-nest_asyncio.apply()
+import concurrent.futures
+
 
 
 from database import initialize_db, complete_database
@@ -13,7 +12,7 @@ from nextcloudsync import sync_with_nextcloud
 
 
 # Define an asynchronous main function
-async def main():
+def main():
   conn, cursor = initialize_db()
 
   with open('config.json', 'r') as config_file:
@@ -22,6 +21,7 @@ async def main():
   opml_file = config.get("opml_file", "feeds.opml")
   output_directory = config.get("output_directory", "output_directory")
   nextcloud_folder = config.get("nextcloud_folder", ".Notes/Current")
+  database_name = config.get("database_name", "rss_feed.db")
 
   if not os.path.exists(output_directory):
     os.makedirs(output_directory)
@@ -29,14 +29,15 @@ async def main():
   complete_database(cursor, opml_file)
   print("New entries added to the database")
 
-  # Asynchronously update article text and summary for new entries
-  tasks = [
-      update_article_text_for_all_tables(cursor),
-      update_summary_for_all_tables(cursor)
-  ]
-  await asyncio.gather(*tasks)
+  update_article_text_for_all_tables(database_name)
+  print("Article text updated in the database")
 
-  print("Article text and summary for new entries updated in the database")
+ 
+
+  update_summary_for_all_tables(cursor)
+
+
+  print("summary for new entries updated in the database")
 
   write_markdown_for_all_tables(cursor)
   print("Markdown files written")
@@ -48,4 +49,4 @@ async def main():
 
 
 if __name__ == '__main__':
-  asyncio.run(main())
+  main()

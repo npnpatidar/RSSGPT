@@ -9,7 +9,7 @@ import re
 import g4f
 import zipfile
 import sqlite3
-import asyncio
+import concurrent.futures
 
 
 # Function to fetch feed data
@@ -96,27 +96,37 @@ def summarise(article_text):
 
 # Function to retrieve full article text from a URL
 def fetch_article_text(url):
-  try:
-    response = requests.get(url)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, 'html.parser')
-    # Customize this part based on the specific structure of the webpage
-    article_text = ''
-    # Example: Extracting text from <p> tags
-    paragraphs = soup.find_all('p')
-    for paragraph in paragraphs:
-      article_text += paragraph.get_text() + '\n'
-    return article_text
-  except Exception as e:
-    print(f"Error fetching content from {url}: {str(e)}")
-    return None
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # Customize this part based on the specific structure of the webpage
+        article_text = ''
+        # Example: Extracting text from <p> tags
+        paragraphs = soup.find_all('p')
+        for paragraph in paragraphs:
+            article_text += paragraph.get_text() + '\n'
+        return article_text
+    except Exception as e:
+        print(f"Error fetching content from {url}: {str(e)}")
+        return None
+
+def fetch_and_update_article_text(db_file, table_name, entry_id, entry_url):
+    article_text = fetch_article_text(entry_url)
+    print("article fetched")
+    if article_text:
+        with sqlite3.connect(db_file) as connection:
+            cursor = connection.cursor()
+            cursor.execute(f'''
+                UPDATE {table_name}
+                SET entry_article_text = ?
+                WHERE entry_id = ?
+            ''', (article_text, entry_id))
 
 
 # Function to update summary for all tables
-async def update_summary_for_all_tables(cursor):
-  global is_running_asynchronously
-  is_running_asynchronously = asyncio.get_event_loop().is_running()
-  print("running async =  ", is_running_asynchronously)
+def update_summary_for_all_tables(cursor):
+
   # Get a list of all table names in the database
   cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
   table_names = cursor.fetchall()
@@ -152,30 +162,24 @@ async def update_summary_for_all_tables(cursor):
 
 
 # Function to update article text for all tables
-async def update_article_text_for_all_tables(cursor):
-  # Get a list of all table names in the database
-  cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-  table_names = cursor.fetchall()
+def update_article_text_for_all_tables(db_file):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        with sqlite3.connect(db_file) as connection:
+            cursor = connection.cursor()
 
-  for table_name in table_names:
-    table_name = table_name[0]  # Extract the table name from the result
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            table_names = cursor.fetchall()
 
-    # Select entries with "NO Summary" in each table
-    cursor.execute(f'''
-            SELECT entry_id, entry_url
-            FROM {table_name}
-            WHERE entry_article_text = ""
-        ''')
+            for table_name in table_names:
+                table_name = table_name[0]
 
-    entries_with_no_article_text = cursor.fetchall()
+                cursor.execute(f'''
+                    SELECT entry_id, entry_url
+                    FROM {table_name}
+                    WHERE entry_article_text = ""
+                ''')
 
-    for entry_id, entry_url in entries_with_no_article_text:
-      # Fetch the article text from the article URL (You may need to use a library like requests to fetch the text)
-      article_text = fetch_article_text(entry_url)
-      cursor.execute(
-          f'''
-                UPDATE {table_name}
-                SET entry_article_text = ?
-                WHERE entry_id = ?
-            ''', (article_text, entry_id))
-  cursor.connection.commit()
+                entries_with_no_article_text = cursor.fetchall()
+
+                for entry_id, entry_url in entries_with_no_article_text:
+                    executor.submit(fetch_and_update_article_text, db_file, table_name, entry_id, entry_url)
