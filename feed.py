@@ -156,10 +156,10 @@ def update_summary_for_all_tables(pool, g4f):
                 SELECT entry_id, entry_url, entry_article_text, entry_title
                 FROM {table_name}
                 WHERE entry_summary = "NO SUMMARY"
-                ORDER BY entry_date DESC
             ''')
 
             entries_with_no_summary = cursor.fetchall()
+            entries_with_no_summary = sorted(entries_with_no_summary, key=lambda x: datetime.strptime(x[6], '%a, %d %b %Y %H:%M:%S %z'), reverse=True)
 
             for entry_id, entry_url, entry_article_text, entry_title in entries_with_no_summary:
                 executor.submit(summarize_and_update,pool, g4f, table_name, entry_id, entry_article_text, entry_title)

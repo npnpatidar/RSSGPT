@@ -7,7 +7,7 @@ from sqliteconnectionpool import SQLiteConnectionPool
 
 
 
-from database import initialize_db, complete_database
+from database import initialize_db, complete_database  , mark_entry_not_written_in_all_tables
 from feed import parse_opml, update_article_text_for_all_tables, update_summary_for_all_tables
 from markdown import write_markdown_for_all_tables , write_markdown_for_date
 from nextcloudsync import sync_with_nextcloud
@@ -32,6 +32,8 @@ def main():
   if not os.path.exists(output_directory):
     os.makedirs(output_directory)
 
+  mark_entry_not_written_in_all_tables(pool)
+  
   write_markdown_for_all_tables(pool)
   print("existing markdown files written to the output directory")
   

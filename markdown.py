@@ -34,9 +34,9 @@ def write_entries_to_markdown(pool, table_name):
     FROM {table_name}
     WHERE entry_written = 0  -- Select entries with entry_written as false
       AND entry_summary <> "NO SUMMARY"  -- Exclude entries with entry_summary as "NO SUMMARY"
-    ORDER BY entry_date DESC  -- Sort by entry_date in descending order (latest to oldest)
   ''')
   entries = cursor.fetchall()
+  entries = sorted(entries, key=lambda x: datetime.strptime(x[6], '%a, %d %b %Y %H:%M:%S %z'), reverse=True)
 
   if not entries:
     return  # No entries to write
