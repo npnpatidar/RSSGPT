@@ -156,6 +156,7 @@ def update_summary_for_all_tables(pool, g4f):
                 SELECT entry_id, entry_url, entry_article_text, entry_title
                 FROM {table_name}
                 WHERE entry_summary = "NO SUMMARY"
+                ORDER BY entry_date DESC
             ''')
 
             entries_with_no_summary = cursor.fetchall()
