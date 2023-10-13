@@ -9,7 +9,7 @@ from sqliteconnectionpool import SQLiteConnectionPool
 
 from database import initialize_db, complete_database
 from feed import parse_opml, update_article_text_for_all_tables, update_summary_for_all_tables
-from markdown import write_markdown_for_all_tables
+from markdown import write_markdown_for_all_tables , write_markdown_for_date
 from nextcloudsync import sync_with_nextcloud
 
 
@@ -32,11 +32,17 @@ def main():
   if not os.path.exists(output_directory):
     os.makedirs(output_directory)
 
+  write_markdown_for_all_tables(pool)
+  print("existing markdown files written to the output directory")
+  
+  sync_with_nextcloud(output_directory, nextcloud_folder, resync=False)
+  print("Existing entries synced with nextcloud")
+
   complete_database(pool, opml_file)
   print("New entries added to the database")
 
   update_article_text_for_all_tables(pool)
-  print("Article text updated in the database")
+  print("Article text for new entries updated in the database")
 
  
 
@@ -46,14 +52,15 @@ def main():
   print("summary for new entries updated in the database")
 
   write_markdown_for_all_tables(pool)
-  print("Markdown files written")
+  print("Markdown files for new entries written")
 
+  #write_markdown_for_date(pool, "12/10/2023")
   #conn.commit()
   #conn.close()
   pool.close_all_connections()
 
   sync_with_nextcloud(output_directory, nextcloud_folder, resync=False)
-
+  print("New entries synced with nextcloud")
 
 if __name__ == '__main__':
   main()
