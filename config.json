@@ -2,7 +2,7 @@
     "opml_file": "feeds.opml",
     "database_name": "rss_feed.db",
     "output_directory": "markdown_files",
-    "nextcloud_folder": ".Notes/Current",
+    "nextcloud_folder": ".Notes/Current_REPLIT",
     "is_summary": true,
     "table_schema": {
         "entry_id": "INTEGER PRIMARY KEY",

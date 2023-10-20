@@ -54,27 +54,24 @@ def complete_database(pool, feed_file):
   pool.release_connection(connection)
 
 
-
 def mark_entry_not_written_in_all_tables(pool):
-    try:
-      connection = pool.get_connection()
-      cursor =  connection.cursor()
-     
-      # Fetch all table names in the database
-      cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-      tables = cursor.fetchall()
+  try:
+    connection = pool.get_connection()
+    cursor = connection.cursor()
 
-      for table in tables:
-          table_name = table[0]
-          cursor.execute(f"UPDATE {table_name} SET entry_written = 0;")
+    # Fetch all table names in the database
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = cursor.fetchall()
 
-      cursor.connection.commit()
-      pool.release_connection(connection)
-      print("Successfully marked 'entry_written' as False in all tables.")
+    for table in tables:
+      table_name = table[0]
+      cursor.execute(f"UPDATE {table_name} SET entry_written = 0;")
 
-    except sqlite3.Error as e:
-        print(f"SQLite error: {e}")
-    except Exception as e:
-      print(f"Error: {e}")
+    cursor.connection.commit()
+    pool.release_connection(connection)
+    print("Successfully marked 'entry_written' as False in all tables.")
 
-
+  except sqlite3.Error as e:
+    print(f"SQLite error: {e}")
+  except Exception as e:
+    print(f"Error: {e}")

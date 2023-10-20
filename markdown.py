@@ -36,7 +36,10 @@ def write_entries_to_markdown(pool, table_name):
       AND entry_summary <> "NO SUMMARY"  -- Exclude entries with entry_summary as "NO SUMMARY"
   ''')
   entries = cursor.fetchall()
-  entries = sorted(entries, key=lambda x: datetime.strptime(x[6], '%a, %d %b %Y %H:%M:%S %z'), reverse=True)
+  entries = sorted(
+      entries,
+      key=lambda x: datetime.strptime(x[6], '%a, %d %b %Y %H:%M:%S %z'),
+      reverse=True)
 
   if not entries:
     return  # No entries to write
@@ -63,7 +66,7 @@ def write_entries_to_markdown(pool, table_name):
         markdown_file.write(f"Summary: {entry_summary}\n")
       else:
         markdown_file.write(f"Article: {entry_article_text}\n\n")
-  
+
       markdown_file.write("\n")
       # Add more details as needed
 
@@ -94,61 +97,61 @@ def write_markdown_for_all_tables(pool):
   pool.release_connection(connection)
 
 
-
-
 def write_markdown_for_date(pool, specific_date):
-    try:
-        connection = pool.get_connection()
-        cursor = connection.cursor()
+  try:
+    connection = pool.get_connection()
+    cursor = connection.cursor()
 
-        # Get the list of table names
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        table_names = cursor.fetchall()
+    # Get the list of table names
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    table_names = cursor.fetchall()
 
-        # Create a list to store the results
-        entries = []
+    # Create a list to store the results
+    entries = []
 
-        # Loop through the tables and execute the query for each table
-        for table_name in table_names:
-            table_name = table_name[0]
+    # Loop through the tables and execute the query for each table
+    for table_name in table_names:
+      table_name = table_name[0]
 
-            # Construct and execute the SQL query
-            query = f'''
+      # Construct and execute the SQL query
+      query = f'''
                 SELECT *
                 FROM {table_name}
                 WHERE strftime('%d/%m/%Y', entry_date) = ?
             '''
-            cursor.execute(query, (specific_date,))
+      cursor.execute(query, (specific_date, ))
 
-            # Fetch the results and add them to the list
-            entries.extend(cursor.fetchall())
+      # Fetch the results and add them to the list
+      entries.extend(cursor.fetchall())
 
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return
+  except Exception as e:
+    print(f"Error: {str(e)}")
+    return
 
-    finally:
-        pool.release_connection(connection)
+  finally:
+    pool.release_connection(connection)
 
-    with open('config.json', 'r') as config_file:
-        config = json.load(config_file)
+  with open('config.json', 'r') as config_file:
+    config = json.load(config_file)
 
-    output_directory = config.get("output_directory", "output_directory")
-    date_formatted_file_path = specific_date.replace('/', '_')
-    markdown_filepath = os.path.join(output_directory, f"{date_formatted_file_path}.md")
+  output_directory = config.get("output_directory", "output_directory")
+  date_formatted_file_path = specific_date.replace('/', '_')
+  markdown_filepath = os.path.join(output_directory,
+                                   f"{date_formatted_file_path}.md")
 
-    # Write the markdown file
-    with open(markdown_filepath, 'w', encoding='utf-8') as markdown_file:
-        for entry in entries:
-            entry_id, _, entry_title, entry_url, entry_summary, entry_article_text, entry_date, _ = entry
-            formatted_date = datetime.strptime(entry_date, '%a, %d %b %Y %H:%M:%S %z').strftime('%d/%m/%Y')
+  # Write the markdown file
+  with open(markdown_filepath, 'w', encoding='utf-8') as markdown_file:
+    for entry in entries:
+      entry_id, _, entry_title, entry_url, entry_summary, entry_article_text, entry_date, _ = entry
+      formatted_date = datetime.strptime(
+          entry_date, '%a, %d %b %Y %H:%M:%S %z').strftime('%d/%m/%Y')
 
-            # Write the entry to the markdown file
-            markdown_file.write(f"Published Date: {formatted_date}\n")
-            markdown_file.write(f"## [{entry_title}]({entry_url})\n\n")
-            if entry_summary != "NO SUMMARY":
-                markdown_file.write(f"Summary: {entry_summary}\n")
-            else:
-                markdown_file.write(f"Article: {entry_article_text}\n\n")
+      # Write the entry to the markdown file
+      markdown_file.write(f"Published Date: {formatted_date}\n")
+      markdown_file.write(f"## [{entry_title}]({entry_url})\n\n")
+      if entry_summary != "NO SUMMARY":
+        markdown_file.write(f"Summary: {entry_summary}\n")
+      else:
+        markdown_file.write(f"Article: {entry_article_text}\n\n")
 
-            markdown_file.write("\n")
+      markdown_file.write("\n")
