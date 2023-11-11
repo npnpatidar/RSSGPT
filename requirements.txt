@@ -1,7 +1,0 @@
-bs4
-feedparser
-requests
-g4f
-lxml
-beautifulsoup4
-rclone
