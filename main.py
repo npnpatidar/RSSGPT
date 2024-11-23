@@ -11,6 +11,50 @@ from youtube_transcript_api.formatters import TextFormatter
 from youtube_transcript_api.formatters import WebVTTFormatter
 from youtube_transcript_api.formatters import SRTFormatter
 
+# from chonkie import SentenceChunker
+# from autotiktokenizer import AutoTikTokenizer
+
+# # Initialize tokenizer and chunker
+# tokenizer = AutoTikTokenizer.from_pretrained("gpt2")
+# chunker = SentenceChunker(
+#     tokenizer=tokenizer,
+#     chunk_size=1024,
+#     chunk_overlap=128,
+#     min_sentences_per_chunk=5
+# )
+
+from chonkie import WordChunker
+from autotiktokenizer import AutoTikTokenizer
+
+tokenizer = AutoTikTokenizer.from_pretrained("gpt2")
+
+chunker = WordChunker(
+    tokenizer=tokenizer,
+    chunk_size=5120,
+    chunk_overlap=128,
+    # mode="advanced"
+)
+
+def chunk_transcript(transcript: str):
+    """
+    Takes a long transcript and returns an array of chunks.
+
+    Args:
+        transcript (str): The long transcript text to chunk.
+
+    Returns:
+        list: A list of chunk objects, each containing the chunked text and other metadata.
+    """
+    # Generate chunks using the SentenceChunker
+    chunks = chunker.chunk(transcript)
+
+    # Extract the chunk text from the chunk objects
+    chunk_texts = [chunk.text for chunk in chunks]
+
+    return chunk_texts
+
+
+
 def get_youtube_transcript(video_url, language_code='en'):
     try:
         # Parse the URL to extract the video ID
@@ -69,7 +113,6 @@ def read_rss_feed(url):
         return {"error": str(e)}
 
 
-
 def filter_and_save_new_links(entries, file_path="processed_links.txt"):
     """
     Filters new links from entries and saves them to a file if they are not already processed.
@@ -116,7 +159,13 @@ if __name__ == "__main__":
    else:
     for entry in new_entries:
         transcript = get_youtube_transcript(entry['link'], language_code='hi')
+
+        chunked_transcript = chunk_transcript(transcript)
+
+        # Print the chunks
+        # for i, chunk in enumerate(chunked_transcript, 1):
+        #     print(f"Chunk {i}: {chunk}")
         with open(f"{entry['title']}.txt", "w") as f:
-            f.write(transcript)
+            f.write(str(chunked_transcript))
 
 

@@ -6,11 +6,11 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     python312
     uv # Add uv to the build inputs
-    # stdenv.cc.cc
-    # zlib
-    # glib
-    # libGL
-    # figlet
+    stdenv.cc.cc
+    zlib
+    glib
+    libGL
+    figlet
 
 
     # fuse3
@@ -39,10 +39,10 @@ pkgs.mkShell {
 
   shellHook = ''
             export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [
-              # pkgs.stdenv.cc.cc
-              # pkgs.zlib
-              # pkgs.libGL
-              # pkgs.glib
+              pkgs.stdenv.cc.cc
+              pkgs.zlib
+              pkgs.libGL
+              pkgs.glib
 
               
               # pkgs.figlet

@@ -49,6 +49,7 @@ jobs:
           git config --local user.email "${U_EMAIL}" 
         
           git status -s
+          git add .
           git add README.md
           export TZ='Asia/Kolkata'
           git commit -m "Github Auto Build at `date +"%Y-%m-%d %H:%M"`"

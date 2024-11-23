@@ -1,3 +1,5 @@
 requests
-youtube-transcript-api
 feedparser
+youtube-transcript-api
+chonkie
+numpy
