@@ -1,0 +1,5 @@
+/.venv/*
+/.direnv/*
+/.nix/fix-python/*
+/.vscode/*
+/__pycache__/*
