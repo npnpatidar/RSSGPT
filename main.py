@@ -14,6 +14,7 @@ from youtube_transcript_api.formatters import SRTFormatter
 def get_youtube_transcript(video_url, language_code='en'):
     try:
         # Parse the URL to extract the video ID
+        print(video_url)
         parsed_url = urlparse(video_url)
         video_id = parse_qs(parsed_url.query)['v'][0]
 
@@ -53,7 +54,7 @@ def read_rss_feed(url):
             # Check if required keywords are in the title (case-insensitive)
             if ("Current Affairs" in entry.title and 
                 ("Kumar Gaurav" in entry.title or "Narendra Sir" in entry.title)):
-
+                print(entry.title)
                 # Append relevant details as JSON object
                 matching_entries.append({
                     "title": entry.title,
