@@ -67,7 +67,7 @@
             wantedBy = [ "multi-user.target" ];
 
             serviceConfig = {
-              ExecStart = "${pkgs.streamlit}/bin/streamlit run ${self}/google_ocr_gui.py --server.port=8501";
+              ExecStart = "${pkgs.python312Packages.streamlit}/bin/streamlit run ${self}/google_ocr_gui.py --server.port=8501";
               Restart = "always";
               User = "nobody";
               WorkingDirectory = "${self}";
@@ -82,7 +82,7 @@
             wantedBy = [ "multi-user.target" ];
 
             serviceConfig = {
-              ExecStart = "${pkgs.uvicorn}/bin/uvicorn google_ocr_api:app --host 0.0.0.0 --port 8000";
+              ExecStart = "${pkgs.python312Packages.uvicorn}/bin/uvicorn google_ocr_api:app --host 0.0.0.0 --port 8000";
               Restart = "always";
               User = "nobody";
               WorkingDirectory = "${self}";
