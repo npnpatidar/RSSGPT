@@ -1,5 +1,0 @@
-requests
-feedparser
-youtube-transcript-api
-chonkie
-numpy
